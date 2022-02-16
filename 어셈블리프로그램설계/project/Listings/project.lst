@@ -1,0 +1,844 @@
+
+
+
+ARM Macro Assembler    Page 1 
+
+
+    1 00000000                 AREA             project, CODE, READONLY
+    2 00000000                 ENTRY
+    3 00000000         Main                                 ;r10 = Matrix_data,
+                                                             r11 = n = 3, r12 =
+                                                             k, sp = memory add
+                                                            ress
+    4 00000000 E59FA4C0        LDR              r10, =Matrix_data
+    5 00000004 E59FD4B4        LDR              sp, Result_data
+    6 00000008         
+    7 00000008 E8BA1800        LDMIA            r10!, {r11-r12} ;get n, k
+    8 0000000C         
+    9 0000000C         ;initMatrix
+   10 0000000C E3A06001        MOV              r6, #1
+   11 00000010 E1A06C16        LSL              r6, r12     ;r6 = 1*2^k
+   12 00000014 E1A05106        MOV              r5, r6, LSL #2 ;r5 = 4*2^k
+   13 00000018         GetRowSize
+   14 00000018 E49A0004        LDR              r0, [r10], #4
+   15 0000001C E68D0005        STR              r0, [sp], r5
+   16 00000020 E2833001        ADD              r3, #1      ;
+   17 00000024 E153000B        CMP              r3, r11     ;r3 == n ?
+   18 00000028 1AFFFFFA        BNE              GetRowSize  ;loop, if false
+   19 0000002C         
+   20 0000002C E2844001        ADD              r4, #1      ;col++
+   21 00000030 E59F1488        LDR              r1, Result_data
+   22 00000034 E04D1001        SUB              r1, sp, r1  ;size of row
+   23 00000038 E59F2484        LDR              r2, temp
+   24 0000003C E5821000        STR              r1, [r2]    ;store one row's si
+                                                            ze
+   25 00000040         
+   26 00000040 E1A0300D        MOV              r3, sp      ;copy sp
+   27 00000044 E04DD005        SUB              sp, sp, r5
+   28 00000048 E28DD004        ADD              sp, sp, #4
+   29 0000004C         initPadding
+   30 0000004C E48D0004        STR              r0, [sp], #4
+   31 00000050 E153000D        CMP              r3, sp      ;sp is next row
+   32 00000054 1AFFFFFC        BNE              initPadding
+   33 00000058         
+   34 00000058         initLoop
+   35 00000058 E3A07001        MOV              r7, #1
+   36 0000005C E3A03000        MOV              r3, #0      ;row = 0
+   37 00000060         initColLoop
+   38 00000060 E08DD001        ADD              sp, sp, r1
+   39 00000064 E2877001        ADD              r7, #1
+   40 00000068 E1570006        CMP              r7, r6      ;2^k == r7 ?
+   41 0000006C 1AFFFFFB        BNE              initColLoop
+   42 00000070         initRowLoop
+   43 00000070 E49A0004        LDR              r0, [r10], #4
+   44 00000074 E68D0005        STR              r0, [sp], r5
+   45 00000078 E2833001        ADD              r3, #1
+   46 0000007C E153000B        CMP              r3, r11     ;r3 == n ?
+   47 00000080 1AFFFFFA        BNE              initRowLoop ;loop, if false
+   48 00000084         ;row padding
+   49 00000084 E1A0300D        MOV              r3, sp      ;copy sp
+   50 00000088 E04DD005        SUB              sp, sp, r5
+   51 0000008C E28DD004        ADD              sp, sp, #4
+   52 00000090         rowPadding
+   53 00000090 E48D0004        STR              r0, [sp], #4
+   54 00000094 E153000D        CMP              r3, sp      ;sp is next row
+   55 00000098 1AFFFFFC        BNE              rowPadding
+
+
+
+ARM Macro Assembler    Page 2 
+
+
+   56 0000009C         ;end
+   57 0000009C E2844001        ADD              r4, #1      ;col++
+   58 000000A0 E154000B        CMP              r4, r11     ;r4 == n ?
+   59 000000A4 1AFFFFEB        BNE              initLoop    ;loop, if false
+   60 000000A8         ;continue, if end
+   61 000000A8         
+   62 000000A8         setCalcBlock                         ;r11 = n, r12 = k
+   63 000000A8 E59FD410        LDR              sp, Result_data
+   64 000000AC E59F9410        LDR              r9, temp
+   65 000000B0 E599A000        LDR              r10, [r9]   ;r10 = rowSize
+   66 000000B4 E3A09001        MOV              r9, #1      ;r9 = row
+   67 000000B8 E59F7408        LDR              r7, =Matrix_data
+   68 000000BC E5976004        LDR              r6, [r7, #4]
+   69 000000C0 E046600C        SUB              r6, r6, r12
+   70 000000C4 E3A08001        MOV              r8, #1
+   71 000000C8 E1A08618        LSL              r8, r6      ;r8 = (2^0~2)
+   72 000000CC E3A07004        MOV              r7, #4
+   73 000000D0 E1A07C17        LSL              r7, r7, r12 ;r7 = 4 * 2^k
+   74 000000D4         
+   75 000000D4         ;firstCalc
+   76 000000D4 E2899001        ADD              r9, #1      ;row++
+   77 000000D8 EA00004D        B                calcFirstPointBlock
+   78 000000DC         returnFPB
+   79 000000DC E159000B        CMP              r9, r11     ;n == 2 ?
+   80 000000E0 0A000003        BEQ              firstPaddingStart ;do only calc
+                                                            FirstPointBlock, if
+                                                             n == 2
+   81 000000E4         loopCalcFirstRow
+   82 000000E4 EA00006C        B                calcFirstRowBlock
+   83 000000E8         returnFRB
+   84 000000E8 E2899001        ADD              r9, #1      ;row++
+   85 000000EC E159000B        CMP              r9, r11     ;row == n
+   86 000000F0 1A000069        BNE              calcFirstRowBlock 
+                                                            ;loop, if false
+   87 000000F4         firstPaddingStart
+   88 000000F4 E3A03001        MOV              r3, #1      ;0 ~ 2^k-1
+   89 000000F8 E24C2001        SUB              r2, r12, #1 ;k-1
+   90 000000FC E1A0221A        MOV              r2, r10, LSL r2
+   91 00000100 E3A04001        MOV              r4, #1
+   92 00000104 E1A04C14        LSL              r4, r12     ;2^k
+   93 00000108 E79D0002        LDR              r0, [sp, r2]
+   94 0000010C E28DD004        ADD              sp, sp, #4
+   95 00000110         blockFirstPadding
+   96 00000110 E78D0002        STR              r0, [sp, r2]
+   97 00000114 E28DD004        ADD              sp, sp, #4
+   98 00000118 E2833001        ADD              r3, #1
+   99 0000011C E1530004        CMP              r3, r4      ;sp is next row
+  100 00000120 1AFFFFFA        BNE              blockFirstPadding
+  101 00000124         ;padding end
+  102 00000124 E1A0600A        MOV              r6, r10
+  103 00000128 E1A06C16        LSL              r6, r12
+  104 0000012C E046600A        SUB              r6, r6, r10 ;r6 = rowSize*(2^k-
+                                                            1)
+  105 00000130 E08DD006        ADD              sp, sp, r6  ;get next row
+  106 00000134 E2888001        ADD              r8, r8, #1  ;col++
+  107 00000138 E158000B        CMP              r8, r11     ;n == 2 ?
+  108 0000013C 13A09001        MOVNE            r9, #1      ;row = 0, if false
+  109 00000140 0A00001B        BEQ              chechSetLoop ;check k to loop, 
+                                                            if true
+
+
+
+ARM Macro Assembler    Page 3 
+
+
+  110 00000144         
+  111 00000144         loopCalcRow
+  112 00000144 E2899001        ADD              r9, #1      ;row++
+  113 00000148 EA00006E        B                calcFirstColBlock
+  114 0000014C         returnFCB
+  115 0000014C E159000B        CMP              r9, r11     ;n == 2 ?
+  116 00000150 0A000003        BEQ              blockPaddingStart ;do only calc
+                                                            FirstColBlock, if n
+                                                             == 2
+  117 00000154         loopCalcBlock
+  118 00000154 EA000088        B                calcMainBlock
+  119 00000158         return
+  120 00000158 E2899001        ADD              r9, #1      ;row++
+  121 0000015C E159000B        CMP              r9, r11     ;row == n
+  122 00000160 1A000085        BNE              calcMainBlock ;loop, if false
+  123 00000164         blockPaddingStart
+  124 00000164 E3A03001        MOV              r3, #1      ;0 ~ 2^k-1
+  125 00000168 E24C2001        SUB              r2, r12, #1 ;k-1
+  126 0000016C E1A0221A        MOV              r2, r10, LSL r2
+  127 00000170 E3A04001        MOV              r4, #1
+  128 00000174 E1A04C14        LSL              r4, r12     ;2^k
+  129 00000178 E79D0002        LDR              r0, [sp, r2]
+  130 0000017C E28DD004        ADD              sp, sp, #4
+  131 00000180         blockPadding
+  132 00000180 E78D0002        STR              r0, [sp, r2]
+  133 00000184 E28DD004        ADD              sp, sp, #4
+  134 00000188 E2833001        ADD              r3, #1
+  135 0000018C E1530004        CMP              r3, r4      ;sp is next row
+  136 00000190 1AFFFFFA        BNE              blockPadding
+  137 00000194         ;padding end
+  138 00000194 E1A0600A        MOV              r6, r10
+  139 00000198 E1A06C16        LSL              r6, r12
+  140 0000019C E046600A        SUB              r6, r6, r10 ;r6 = rowSize*(2^k-
+                                                            1)
+  141 000001A0 E08DD006        ADD              sp, sp, r6  ;get next row
+  142 000001A4 E2888001        ADD              r8, r8, #1  ;col++
+  143 000001A8 E158000B        CMP              r8, r11     ;col == n
+  144 000001AC 13A09001        MOVNE            r9, #1      ;row = 0, if false
+  145 000001B0 1AFFFFE3        BNE              loopCalcRow ;loop, if false
+  146 000001B4         chechSetLoop
+  147 000001B4 E24CC001        SUB              r12, r12, #1
+  148 000001B8 E1A0B08B        LSL              r11, #1
+  149 000001BC E35C0000        CMP              r12, #0     ;k == 0 ?
+  150 000001C0 1AFFFFB8        BNE              setCalcBlock
+  151 000001C4         
+  152 000001C4         colPaddingStart                      ;r11 = n * 2^k
+  153 000001C4 E59F32FC        LDR              r3, =Matrix_data
+  154 000001C8 E593C004        LDR              r12, [r3, #4] ;get k
+  155 000001CC E3A04001        MOV              r4, #1
+  156 000001D0 E1A04C14        LSL              r4, r12     ;r4 = 2^k
+  157 000001D4 E3A05000        MOV              r5, #0      ;0~n*2^k
+  158 000001D8 E08DD006        ADD              sp, r6
+  159 000001DC E04DD00A        SUB              sp, r10     ;get prev padding p
+                                                            oint address
+  160 000001E0         colPadding
+  161 000001E0 E59D0000        LDR              r0, [sp]
+  162 000001E4 E3A03001        MOV              r3, #1
+  163 000001E8 E1A0200A        MOV              r2, r10
+  164 000001EC         loopCol
+
+
+
+ARM Macro Assembler    Page 4 
+
+
+  165 000001EC E78D0002        STR              r0, [sp, r2]
+  166 000001F0 E082200A        ADD              r2, r2, r10 ;r2 += r10
+  167 000001F4 E2833001        ADD              r3, #1      ;col++
+  168 000001F8 E1530004        CMP              r3, r4      ;r3 == 2^k ?
+  169 000001FC 1AFFFFFA        BNE              loopCol     ;loop, if false
+  170 00000200 E28DD004        ADD              sp, sp, #4
+  171 00000204 E2855001        ADD              r5, r5, #1  ;row++
+  172 00000208 E155000B        CMP              r5, r11     ;r5 == n*2^k ?
+  173 0000020C 1AFFFFF3        BNE              colPadding  ;loop, if false
+  174 00000210         
+  175 00000210 E3A0F000        MOV              pc, #0      ;Program end
+  176 00000214         
+  177 00000214         calcFirstPointBlock                  ;sp is left/top poi
+                                                            nt address
+  178 00000214 E59D0000        LDR              r0, [sp]    ;a
+  179 00000218 E1A02C1A        MOV              r2, r10, LSL r12
+  180 0000021C E79D1002        LDR              r1, [sp, r2] ;c
+  181 00000220 EB00006B        BL               calcMedian
+  182 00000224 E24C2001        SUB              r2, r12, #1 ;k-1r
+  183 00000228 E1A0221A        MOV              r2, r10, LSL r2
+  184 0000022C E78D0002        STR              r0, [sp, r2] ;ac/2
+  185 00000230         
+  186 00000230 E1A02C1A        MOV              r2, r10, LSL r12
+  187 00000234 E7BD0002        LDR              r0, [sp, r2]! ;c
+  188 00000238 E79D1007        LDR              r1, [sp, r7] ;d
+  189 0000023C EB000064        BL               calcMedian
+  190 00000240 E78D00A7        STR              r0, [sp, r7, LSR #1] ;cd/2
+  191 00000244         
+  192 00000244 E7BD1007        LDR              r1, [sp, r7]! ;d
+  193 00000248 E04DDC1A        SUB              sp, sp, r10, LSL r12
+  194 0000024C E59D0000        LDR              r0, [sp]    ;b
+  195 00000250 EB00005F        BL               calcMedian
+  196 00000254 E24C2001        SUB              r2, r12, #1 ;k-1
+  197 00000258 E1A0221A        MOV              r2, r10, LSL r2
+  198 0000025C E78D0002        STR              r0, [sp, r2] ;bd/2
+  199 00000260         
+  200 00000260 E79D1002        LDR              r1, [sp, r2] ;bd
+  201 00000264 E04DD007        SUB              sp, sp, r7
+  202 00000268 E79D0002        LDR              r0, [sp, r2] ;ac
+  203 0000026C EB000058        BL               calcMedian
+  204 00000270 E24C2001        SUB              r2, r12, #1 ;k-1
+  205 00000274 E1A0221A        MOV              r2, r10, LSL r2
+  206 00000278 E08DD0A7        ADD              sp, sp, r7, LSR #1
+  207 0000027C E78D0002        STR              r0, [sp, r2] ;center
+  208 00000280         
+  209 00000280 E04DD0A7        SUB              sp, sp, r7, LSR #1
+  210 00000284 E59D0000        LDR              r0, [sp]    ;a
+  211 00000288 E79D1007        LDR              r1, [sp, r7] ;b
+  212 0000028C EB000050        BL               calcMedian
+  213 00000290 E78D00A7        STR              r0, [sp, r7, LSR #1] ;ab/2
+  214 00000294 E08DD007        ADD              sp, sp, r7  ;sp is pointing nex
+                                                            t a(=b) address
+  215 00000298         
+  216 00000298 EAFFFF8F        B                returnFPB
+  217 0000029C         
+  218 0000029C         calcFirstRowBlock                    ;sp is left/top poi
+                                                            nt address
+  219 0000029C E1A02C1A        MOV              r2, r10, LSL r12
+  220 000002A0 E7BD0002        LDR              r0, [sp, r2]! ;c
+
+
+
+ARM Macro Assembler    Page 5 
+
+
+  221 000002A4 E79D1007        LDR              r1, [sp, r7] ;d
+  222 000002A8 EB000049        BL               calcMedian
+  223 000002AC E78D00A7        STR              r0, [sp, r7, LSR #1] ;cd/2
+  224 000002B0         
+  225 000002B0 E7BD1007        LDR              r1, [sp, r7]! ;d
+  226 000002B4 E04DDC1A        SUB              sp, sp, r10, LSL r12
+  227 000002B8 E59D0000        LDR              r0, [sp]    ;b
+  228 000002BC EB000044        BL               calcMedian
+  229 000002C0 E24C2001        SUB              r2, r12, #1 ;k-1
+  230 000002C4 E1A0221A        MOV              r2, r10, LSL r2
+  231 000002C8 E78D0002        STR              r0, [sp, r2] ;bd/2
+  232 000002CC         
+  233 000002CC E79D1002        LDR              r1, [sp, r2] ;bd
+  234 000002D0 E04DD007        SUB              sp, sp, r7
+  235 000002D4 E79D0002        LDR              r0, [sp, r2] ;ac
+  236 000002D8 EB00003D        BL               calcMedian
+  237 000002DC E24C2001        SUB              r2, r12, #1 ;k-1
+  238 000002E0 E1A0221A        MOV              r2, r10, LSL r2
+  239 000002E4 E08DD0A7        ADD              sp, sp, r7, LSR #1
+  240 000002E8 E78D0002        STR              r0, [sp, r2] ;center
+  241 000002EC         
+  242 000002EC E04DD0A7        SUB              sp, sp, r7, LSR #1
+  243 000002F0 E59D0000        LDR              r0, [sp]    ;a
+  244 000002F4 E79D1007        LDR              r1, [sp, r7] ;b
+  245 000002F8 EB000035        BL               calcMedian
+  246 000002FC E78D00A7        STR              r0, [sp, r7, LSR #1] ;ab/2
+  247 00000300 E08DD007        ADD              sp, sp, r7  ;sp is pointing nex
+                                                            t a(=b) address
+  248 00000304         
+  249 00000304 EAFFFF77        B                returnFRB
+  250 00000308         
+  251 00000308         calcFirstColBlock                    ;sp is left/top poi
+                                                            nt address
+  252 00000308 E59D0000        LDR              r0, [sp]    ;a
+  253 0000030C E1A02C1A        MOV              r2, r10, LSL r12
+  254 00000310 E79D1002        LDR              r1, [sp, r2] ;c
+  255 00000314 EB00002E        BL               calcMedian
+  256 00000318 E24C2001        SUB              r2, r12, #1 ;k-1r
+  257 0000031C E1A0221A        MOV              r2, r10, LSL r2
+  258 00000320 E78D0002        STR              r0, [sp, r2] ;ac/2
+  259 00000324         
+  260 00000324 E1A02C1A        MOV              r2, r10, LSL r12
+  261 00000328 E7BD0002        LDR              r0, [sp, r2]! ;c
+  262 0000032C E79D1007        LDR              r1, [sp, r7] ;d
+  263 00000330 EB000027        BL               calcMedian
+  264 00000334 E78D00A7        STR              r0, [sp, r7, LSR #1] ;cd/2
+  265 00000338         
+  266 00000338 E7BD1007        LDR              r1, [sp, r7]! ;d
+  267 0000033C E04DDC1A        SUB              sp, sp, r10, LSL r12
+  268 00000340 E59D0000        LDR              r0, [sp]    ;b
+  269 00000344 EB000022        BL               calcMedian
+  270 00000348 E24C2001        SUB              r2, r12, #1 ;k-1
+  271 0000034C E1A0221A        MOV              r2, r10, LSL r2
+  272 00000350 E78D0002        STR              r0, [sp, r2] ;bd/2
+  273 00000354         
+  274 00000354 E79D1002        LDR              r1, [sp, r2] ;bd
+  275 00000358 E04DD007        SUB              sp, sp, r7
+  276 0000035C E79D0002        LDR              r0, [sp, r2] ;ac
+  277 00000360 EB00001B        BL               calcMedian
+
+
+
+ARM Macro Assembler    Page 6 
+
+
+  278 00000364 E24C2001        SUB              r2, r12, #1 ;k-1
+  279 00000368 E1A0221A        MOV              r2, r10, LSL r2
+  280 0000036C E08DD0A7        ADD              sp, sp, r7, LSR #1
+  281 00000370 E78D0002        STR              r0, [sp, r2] ;center
+  282 00000374         
+  283 00000374 E08DD0A7        ADD              sp, sp, r7, LSR #1 ;sp is point
+                                                            ing next a(=b) addr
+                                                            ess
+  284 00000378 EAFFFF73        B                returnFCB
+  285 0000037C         
+  286 0000037C         calcMainBlock                        ;sp is left/top poi
+                                                            nt address
+  287 0000037C E1A02C1A        MOV              r2, r10, LSL r12
+  288 00000380 E7BD0002        LDR              r0, [sp, r2]! ;c
+  289 00000384 E79D1007        LDR              r1, [sp, r7] ;d
+  290 00000388 EB000011        BL               calcMedian
+  291 0000038C E78D00A7        STR              r0, [sp, r7, LSR #1] ;cd/2
+  292 00000390         
+  293 00000390 E7BD1007        LDR              r1, [sp, r7]! ;d
+  294 00000394 E04DDC1A        SUB              sp, sp, r10, LSL r12
+  295 00000398 E59D0000        LDR              r0, [sp]    ;b
+  296 0000039C EB00000C        BL               calcMedian
+  297 000003A0 E24C2001        SUB              r2, r12, #1 ;k-1
+  298 000003A4 E1A0221A        MOV              r2, r10, LSL r2
+  299 000003A8 E78D0002        STR              r0, [sp, r2] ;bd/2
+  300 000003AC         
+  301 000003AC E79D1002        LDR              r1, [sp, r2] ;bd
+  302 000003B0 E04DD007        SUB              sp, sp, r7
+  303 000003B4 E79D0002        LDR              r0, [sp, r2] ;ac
+  304 000003B8 EB000005        BL               calcMedian
+  305 000003BC E24C2001        SUB              r2, r12, #1 ;k-1
+  306 000003C0 E1A0221A        MOV              r2, r10, LSL r2
+  307 000003C4 E08DD0A7        ADD              sp, sp, r7, LSR #1
+  308 000003C8 E78D0002        STR              r0, [sp, r2] ;center
+  309 000003CC         
+  310 000003CC E08DD0A7        ADD              sp, sp, r7, LSR #1 ;sp is point
+                                                            ing next a(=b) addr
+                                                            ess
+  311 000003D0 EAFFFF60        B                return
+  312 000003D4         
+  313 000003D4         calcMedian                           ;use r0~r6
+  314 000003D4 E1A02080        MOV              r2, r0, LSL #1
+  315 000003D8 E1A02C22        LSR              r2, #24
+  316 000003DC E1A03081        MOV              r3, r1, LSL #1
+  317 000003E0 E1A03C23        LSR              r3, #24     ;get E using Shift
+  318 000003E4         
+  319 000003E4 E1A04480        MOV              r4, r0, LSL #9
+  320 000003E8 E1A044A4        LSR              r4, #9
+  321 000003EC E1A05481        MOV              r5, r1, LSL #9
+  322 000003F0 E1A054A5        LSR              r5, #9      ;get M using Shift
+  323 000003F4         
+  324 000003F4 E1A00FA0        LSR              r0, #31
+  325 000003F8 E1A01FA1        LSR              r1, #31     ;get S using Shift
+  326 000003FC         
+  327 000003FC E3A06001        MOV              r6, #1
+  328 00000400 E1844B86        ORR              r4, r4, r6, LSL #23
+  329 00000404 E1855B86        ORR              r5, r5, r6, LSL #23 ;set intege
+                                                            r number 1
+  330 00000408         
+
+
+
+ARM Macro Assembler    Page 7 
+
+
+  331 00000408 E1520003        CMP              r2, r3      ;get exponent diffe
+                                                            rence
+  332 0000040C         
+  333 0000040C C0426003        SUBGT            r6, r2, r3  ;r2 - r3, if r2 > r
+                                                            3
+  334 00000410 C1A05635        LSRGT            r5, r6      ;shift
+  335 00000414         
+  336 00000414 B0436002        SUBLT            r6, r3, r2  ;r3 - r2, if r2 < r
+                                                            3
+  337 00000418 B1A02003        MOVLT            r2, r3      ;r2 = r3
+  338 0000041C B1A04634        LSRLT            r4, r6      ;shift
+  339 00000420         
+  340 00000420 E1500001        CMP              r0, r1      ;add/sub
+  341 00000424 1A000005        BNE              Msub        ;not equal
+  342 00000428         
+  343 00000428         Madd
+  344 00000428 E0844005        ADD              r4, r4, r5  ;r4 + r5
+  345 0000042C E3A06001        MOV              r6, #1      ;
+  346 00000430 E0146C06        ANDS             r6, r4, r6, LSL #24 
+                                                            ;check carry out
+  347 00000434 12822001        ADDNE            r2, r2, #1  ;E++, if carry out 
+                                                            is exist
+  348 00000438 11A040A4        LSRNE            r4, #1      ;M >> 1
+  349 0000043C EA00000D        B                GetFullFloat
+  350 00000440         
+  351 00000440         Msub
+  352 00000440 E1540005        CMP              r4, r5
+  353 00000444 03A00000        MOVEQ            r0, #0
+  354 00000448 01A0F00E        MOVEQ            pc, lr      ;zero result
+  355 0000044C C0444005        SUBGT            r4, r4, r5  ;r4 - r5
+  356 00000450 B0454004        SUBLT            r4, r5, r4  ;r5 - r4
+  357 00000454 B1A00001        MOVLT            r0, r1      ;sign bit is greate
+                                                            r's
+  358 00000458 E3A03000        MOV              r3, #0      ;count loop
+  359 0000045C E3A06001        MOV              r6, #1
+  360 00000460 E1A06B86        LSL              r6, #23
+  361 00000464         Loop                                 ;find integer 1
+  362 00000464 E0165314        ANDS             r5, r6, r4, LSL r3 
+                                                            ;1 & (r4 << r3)
+  363 00000468 02833001        ADDEQ            r3, #1      ;count++
+  364 0000046C 0AFFFFFC        BEQ              Loop        ;r4 << r3 bit is 0.
+                                                             Loop must do 'brea
+                                                            k' because r4 is no
+                                                            t zero (zero result
+                                                            )
+  365 00000470 E1A04314        LSL              r4, r3      ;shift r4
+  366 00000474 E0422003        SUB              r2, r2, r3  ;E - r3
+  367 00000478         
+  368 00000478         GetFullFloat
+  369 00000478 E1A04484        LSL              r4, #9
+  370 0000047C E2422001        SUB              r2, #1      ;/2
+  371 00000480 E1A02C02        LSL              r2, #24
+  372 00000484 E1A020A2        LSR              r2, #1
+  373 00000488 E1820F80        ORR              r0, r2, r0, LSL #31
+  374 0000048C E18004A4        ORR              r0, r0, r4, LSR #9
+  375 00000490 E1A0F00E        MOV              pc, lr      ;back to the functi
+                                                            on
+  376 00000494         
+  377 00000494         Matrix_data
+
+
+
+ARM Macro Assembler    Page 8 
+
+
+  378 00000494 00000003        DCD              3
+  379 00000498 00000002        DCD              2
+  380 0000049C 42680000        DCD              2_01000010011010000000000000000
+000
+  381 000004A0 BFF40000        DCD              2_10111111111101000000000000000
+000
+  382 000004A4 C0C00000        DCD              2_11000000110000000000000000000
+000
+  383 000004A8 C2E00000        DCD              2_11000010111000000000000000000
+000
+  384 000004AC 43000000        DCD              2_01000011000000000000000000000
+000
+  385 000004B0 422C0000        DCD              2_01000010001011000000000000000
+000
+  386 000004B4 43C40000        DCD              2_01000011110001000000000000000
+000
+  387 000004B8 43700000        DCD              2_01000011011100000000000000000
+000
+  388 000004BC 41A00000        DCD              2_01000001101000000000000000000
+000
+  389 000004C0         
+  390 000004C0         Result_data
+  391 000004C0 60000000        DCD              0x60000000
+  392 000004C4         
+  393 000004C4         temp
+  394 000004C4 40000000        DCD              0x40000000
+  395 000004C8         
+  396 000004C8                 END
+              00000000 
+              00000000 
+              00000000 
+Command Line: --debug --xref --diag_suppress=9931 --cpu=ARM9E --bi --apcs=inter
+work --depend=.\objects\project.d -o.\objects\project.o -IC:\Keil_v5\ARM\RV31\I
+NC -IC:\Keil_v5\ARM\CMSIS\Include --predefine="__EVAL SETA 1" --predefine="__UV
+ISION_VERSION SETA 525" --list=.\listings\project.lst project.s
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+GetFullFloat 00000478
+
+Symbol: GetFullFloat
+   Definitions
+      At line 368 in file project.s
+   Uses
+      At line 349 in file project.s
+Comment: GetFullFloat used once
+GetRowSize 00000018
+
+Symbol: GetRowSize
+   Definitions
+      At line 13 in file project.s
+   Uses
+      At line 18 in file project.s
+Comment: GetRowSize used once
+Loop 00000464
+
+Symbol: Loop
+   Definitions
+      At line 361 in file project.s
+   Uses
+      At line 364 in file project.s
+Comment: Loop used once
+Madd 00000428
+
+Symbol: Madd
+   Definitions
+      At line 343 in file project.s
+   Uses
+      None
+Comment: Madd unused
+Main 00000000
+
+Symbol: Main
+   Definitions
+      At line 3 in file project.s
+   Uses
+      None
+Comment: Main unused
+Matrix_data 00000494
+
+Symbol: Matrix_data
+   Definitions
+      At line 377 in file project.s
+   Uses
+      At line 4 in file project.s
+      At line 67 in file project.s
+      At line 153 in file project.s
+
+Msub 00000440
+
+Symbol: Msub
+   Definitions
+      At line 351 in file project.s
+   Uses
+      At line 341 in file project.s
+Comment: Msub used once
+Result_data 000004C0
+
+
+
+ARM Macro Assembler    Page 2 Alphabetic symbol ordering
+Relocatable symbols
+
+
+Symbol: Result_data
+   Definitions
+      At line 390 in file project.s
+   Uses
+      At line 5 in file project.s
+      At line 21 in file project.s
+      At line 63 in file project.s
+
+blockFirstPadding 00000110
+
+Symbol: blockFirstPadding
+   Definitions
+      At line 95 in file project.s
+   Uses
+      At line 100 in file project.s
+Comment: blockFirstPadding used once
+blockPadding 00000180
+
+Symbol: blockPadding
+   Definitions
+      At line 131 in file project.s
+   Uses
+      At line 136 in file project.s
+Comment: blockPadding used once
+blockPaddingStart 00000164
+
+Symbol: blockPaddingStart
+   Definitions
+      At line 123 in file project.s
+   Uses
+      At line 116 in file project.s
+Comment: blockPaddingStart used once
+calcFirstColBlock 00000308
+
+Symbol: calcFirstColBlock
+   Definitions
+      At line 251 in file project.s
+   Uses
+      At line 113 in file project.s
+Comment: calcFirstColBlock used once
+calcFirstPointBlock 00000214
+
+Symbol: calcFirstPointBlock
+   Definitions
+      At line 177 in file project.s
+   Uses
+      At line 77 in file project.s
+Comment: calcFirstPointBlock used once
+calcFirstRowBlock 0000029C
+
+Symbol: calcFirstRowBlock
+   Definitions
+      At line 218 in file project.s
+   Uses
+      At line 82 in file project.s
+      At line 86 in file project.s
+
+calcMainBlock 0000037C
+
+
+
+ARM Macro Assembler    Page 3 Alphabetic symbol ordering
+Relocatable symbols
+
+
+Symbol: calcMainBlock
+   Definitions
+      At line 286 in file project.s
+   Uses
+      At line 118 in file project.s
+      At line 122 in file project.s
+
+calcMedian 000003D4
+
+Symbol: calcMedian
+   Definitions
+      At line 313 in file project.s
+   Uses
+      At line 181 in file project.s
+      At line 189 in file project.s
+      At line 195 in file project.s
+      At line 203 in file project.s
+      At line 212 in file project.s
+      At line 222 in file project.s
+      At line 228 in file project.s
+      At line 236 in file project.s
+      At line 245 in file project.s
+      At line 255 in file project.s
+      At line 263 in file project.s
+      At line 269 in file project.s
+      At line 277 in file project.s
+      At line 290 in file project.s
+      At line 296 in file project.s
+      At line 304 in file project.s
+
+chechSetLoop 000001B4
+
+Symbol: chechSetLoop
+   Definitions
+      At line 146 in file project.s
+   Uses
+      At line 109 in file project.s
+Comment: chechSetLoop used once
+colPadding 000001E0
+
+Symbol: colPadding
+   Definitions
+      At line 160 in file project.s
+   Uses
+      At line 173 in file project.s
+Comment: colPadding used once
+colPaddingStart 000001C4
+
+Symbol: colPaddingStart
+   Definitions
+      At line 152 in file project.s
+   Uses
+      None
+Comment: colPaddingStart unused
+firstPaddingStart 000000F4
+
+Symbol: firstPaddingStart
+   Definitions
+
+
+
+ARM Macro Assembler    Page 4 Alphabetic symbol ordering
+Relocatable symbols
+
+      At line 87 in file project.s
+   Uses
+      At line 80 in file project.s
+Comment: firstPaddingStart used once
+initColLoop 00000060
+
+Symbol: initColLoop
+   Definitions
+      At line 37 in file project.s
+   Uses
+      At line 41 in file project.s
+Comment: initColLoop used once
+initLoop 00000058
+
+Symbol: initLoop
+   Definitions
+      At line 34 in file project.s
+   Uses
+      At line 59 in file project.s
+Comment: initLoop used once
+initPadding 0000004C
+
+Symbol: initPadding
+   Definitions
+      At line 29 in file project.s
+   Uses
+      At line 32 in file project.s
+Comment: initPadding used once
+initRowLoop 00000070
+
+Symbol: initRowLoop
+   Definitions
+      At line 42 in file project.s
+   Uses
+      At line 47 in file project.s
+Comment: initRowLoop used once
+loopCalcBlock 00000154
+
+Symbol: loopCalcBlock
+   Definitions
+      At line 117 in file project.s
+   Uses
+      None
+Comment: loopCalcBlock unused
+loopCalcFirstRow 000000E4
+
+Symbol: loopCalcFirstRow
+   Definitions
+      At line 81 in file project.s
+   Uses
+      None
+Comment: loopCalcFirstRow unused
+loopCalcRow 00000144
+
+Symbol: loopCalcRow
+   Definitions
+      At line 111 in file project.s
+   Uses
+      At line 145 in file project.s
+
+
+
+ARM Macro Assembler    Page 5 Alphabetic symbol ordering
+Relocatable symbols
+
+Comment: loopCalcRow used once
+loopCol 000001EC
+
+Symbol: loopCol
+   Definitions
+      At line 164 in file project.s
+   Uses
+      At line 169 in file project.s
+Comment: loopCol used once
+project 00000000
+
+Symbol: project
+   Definitions
+      At line 1 in file project.s
+   Uses
+      None
+Comment: project unused
+return 00000158
+
+Symbol: return
+   Definitions
+      At line 119 in file project.s
+   Uses
+      At line 311 in file project.s
+Comment: return used once
+returnFCB 0000014C
+
+Symbol: returnFCB
+   Definitions
+      At line 114 in file project.s
+   Uses
+      At line 284 in file project.s
+Comment: returnFCB used once
+returnFPB 000000DC
+
+Symbol: returnFPB
+   Definitions
+      At line 78 in file project.s
+   Uses
+      At line 216 in file project.s
+Comment: returnFPB used once
+returnFRB 000000E8
+
+Symbol: returnFRB
+   Definitions
+      At line 83 in file project.s
+   Uses
+      At line 249 in file project.s
+Comment: returnFRB used once
+rowPadding 00000090
+
+Symbol: rowPadding
+   Definitions
+      At line 52 in file project.s
+   Uses
+      At line 55 in file project.s
+Comment: rowPadding used once
+setCalcBlock 000000A8
+
+
+
+
+ARM Macro Assembler    Page 6 Alphabetic symbol ordering
+Relocatable symbols
+
+Symbol: setCalcBlock
+   Definitions
+      At line 62 in file project.s
+   Uses
+      At line 150 in file project.s
+Comment: setCalcBlock used once
+temp 000004C4
+
+Symbol: temp
+   Definitions
+      At line 393 in file project.s
+   Uses
+      At line 23 in file project.s
+      At line 64 in file project.s
+
+36 symbols
+370 symbols in table
